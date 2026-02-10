@@ -1,3 +1,6 @@
+# 更新的依赖版本（兼容 Python 3.14）
+# 如果仍有问题，建议使用 Python 3.11-3.13
+
 fastapi>=0.115.0
 uvicorn[standard]>=0.32.0
 sqlalchemy>=2.0.36

@@ -1,24 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { api, MinerDetail, HashboardInfo } from '../api/client';
+import { api, MinerDetail as MinerDetailType, HashboardInfo } from '../api/client';
 import './MinerDetail.css';
 
 const MinerDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [miner, setMiner] = useState<MinerDetail | null>(null);
+  const [miner, setMiner] = useState<MinerDetailType | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (id) {
-      loadMinerDetail();
-      const interval = setInterval(loadMinerDetail, 30000);
-      return () => clearInterval(interval);
-    }
-  }, [id]);
-
-  const loadMinerDetail = async () => {
+  const loadMinerDetail = useCallback(async () => {
     if (!id) return;
     try {
       const data = await api.getMinerDetail(parseInt(id));
@@ -28,7 +20,15 @@ const MinerDetail: React.FC = () => {
       console.error('加载矿机详情失败:', error);
       setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    if (id) {
+      loadMinerDetail();
+      const interval = setInterval(loadMinerDetail, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [id, loadMinerDetail]);
 
   const formatHashrate = (th: number | null): string => {
     if (!th) return '0 TH/s';
@@ -189,11 +189,11 @@ const MinerDetail: React.FC = () => {
             </div>
           </div>
 
-          {status.hashboard_info && status.hashboard_info.length > 0 && (
+          {status.hasboard_info && status.hasboard_info.length > 0 && (
             <div className="hashboard-section">
               <h3>算力板信息</h3>
               <div className="hashboard-grid">
-                {status.hashboard_info.map((board: HashboardInfo, index: number) => (
+                {status.hasboard_info.map((board: HashboardInfo, index: number) => (
                   <div key={index} className="hashboard-card">
                     <h4>算力板 {board.id}</h4>
                     <div className="hashboard-info">

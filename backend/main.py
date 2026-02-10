@@ -10,7 +10,7 @@ import asyncio
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
-from config import CORS_ORIGINS, STATUS_UPDATE_INTERVAL, SCAN_INTERVAL
+from config import CORS_ORIGINS, STATUS_UPDATE_INTERVAL, SCAN_INTERVAL, DEBUG_MODE
 from database import init_db, get_db, Miner, MinerStatus, MinerLog
 from miner_api import MinerAPIClient
 from miner_discovery import MinerDiscovery
@@ -38,15 +38,23 @@ async def startup_event():
     """启动时初始化"""
     scheduler.start()
     # 启动定时任务
+    # max_instances=1: 同一时间只允许一个实例运行
+    # coalesce=True: 如果任务被跳过，合并执行
     scheduler.add_job(
         update_all_miners_status,
         IntervalTrigger(seconds=STATUS_UPDATE_INTERVAL),
-        id="update_status"
+        id="update_status",
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=60  # 允许60秒的延迟
     )
     scheduler.add_job(
         discover_new_miners,
         IntervalTrigger(seconds=SCAN_INTERVAL),
-        id="discover_miners"
+        id="discover_miners",
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=300  # 允许5分钟的延迟
     )
 
 @app.on_event("shutdown")
@@ -316,12 +324,14 @@ async def update_all_miners_status():
                     miner.is_online = False
                     
             except Exception as e:
-                print(f"更新矿机 {miner.ip_address} 状态失败: {e}")
+                if DEBUG_MODE:
+                    print(f"更新矿机 {miner.ip_address} 状态失败: {e}")
                 miner.is_online = False
         
         db.commit()
     except Exception as e:
-        print(f"更新矿机状态失败: {e}")
+        if DEBUG_MODE:
+            print(f"更新矿机状态失败: {e}")
         db.rollback()
     finally:
         db.close()
@@ -351,8 +361,11 @@ async def discover_new_miners():
                     db.add(miner)
         
         db.commit()
+        if DEBUG_MODE and miner_ips:
+            print(f"发现 {len(miner_ips)} 个在线矿机")
     except Exception as e:
-        print(f"发现矿机失败: {e}")
+        if DEBUG_MODE:
+            print(f"发现矿机失败: {e}")
         db.rollback()
     finally:
         db.close()

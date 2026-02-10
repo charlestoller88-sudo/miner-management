@@ -4,7 +4,7 @@
 import httpx
 import json
 from typing import Dict, Optional, List
-from config import MINER_API_PORT, API_TIMEOUT
+from config import MINER_API_PORT, API_TIMEOUT, DEBUG_MODE
 
 class MinerAPIClient:
     """Antminer API客户端"""
@@ -26,8 +26,11 @@ class MinerAPIClient:
                 if response.status_code == 200:
                     return response.json()
                 return None
-        except Exception as e:
-            print(f"请求 {self.ip_address} 失败: {e}")
+        except (httpx.TimeoutException, httpx.ConnectError, httpx.NetworkError):
+            # 静默处理超时和连接错误（这些是正常的，因为很多IP不是矿机）
+            return None
+        except Exception:
+            # 其他错误也静默处理
             return None
     
     async def get_summary(self) -> Optional[Dict]:
@@ -206,6 +209,7 @@ class MinerAPIClient:
                     result["network_status"] = network_status[0].get("Status", "unknown")
             
         except Exception as e:
-            print(f"解析 {self.ip_address} 数据失败: {e}")
+            if DEBUG_MODE:
+                print(f"解析 {self.ip_address} 数据失败: {e}")
         
         return result
